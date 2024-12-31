@@ -122,7 +122,7 @@ void MainWindow::readPos()
     const QPointF last = posGraph->series[0]->at(99);
 
     posGraph->axisX->setRange(first.x(), last.x());
-    posGraph->axisY->setRange(last.y() - 45, last.y() + 15);
+    posGraph->axisY->setRange(last.y() - 500, last.y() + 500);
 
     readVel();
 
@@ -163,7 +163,7 @@ void MainWindow::readVel()
     QPointF last = centered->at(97);
 
     velGraph->axisX->setRange(first.x(), last.x());
-    velGraph->axisY->setRange(last.y() - 40, last.y() + 40);
+    velGraph->axisY->setRange(last.y() - 480, last.y() + 480);
 }
 
 
