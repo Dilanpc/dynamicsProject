@@ -1,11 +1,16 @@
 #include "arduino.h"
 
+#ifdef ESP_PLATFORM
+    #define SERIALPORT "COM4"
+#else
+    #define SERIALPORT "COM3"
+#endif
+
 
 Arduino::Arduino(QObject* parent)
     : QObject(parent)
 {
-
-    serial.setPortName("COM3");
+    serial.setPortName(SERIALPORT);
     serial.setBaudRate(QSerialPort::Baud9600);
     serial.setDataBits(QSerialPort::Data8);
     serial.setParity(QSerialPort::NoParity);
@@ -35,10 +40,10 @@ void Arduino::getEncoderData()
 
     for (char d : data){
         if (d == '1') {
-            ++position;
+            position += 12;
         }
         if (d == '0') {
-            --position;
+            position -= 12;
         }
     }
 
