@@ -1,31 +1,29 @@
 #include "arduino.h"
 
-#ifdef ESP_PLATFORM
-    #define SERIALPORT "COM4"
-#else
-    #define SERIALPORT "COM3"
-#endif
-
 
 Arduino::Arduino(QObject* parent)
     : QObject(parent)
 {
-    serial.setPortName(SERIALPORT);
     serial.setBaudRate(QSerialPort::Baud9600);
     serial.setDataBits(QSerialPort::Data8);
     serial.setParity(QSerialPort::NoParity);
     serial.setStopBits(QSerialPort::OneStop);
     serial.setFlowControl(QSerialPort::NoFlowControl);
+}
+
+Arduino::~Arduino()
+{
+}
+
+void Arduino::open(const QString& serialPortName)
+{
+    serial.setPortName(serialPortName);
 
     if (!serial.open(QIODevice::ReadWrite)) {
         throw std::runtime_error(serial.errorString().toStdString());
     }
 
     connect(&serial, &QSerialPort::readyRead, this, &Arduino::getEncoderData);
-}
-
-Arduino::~Arduino()
-{
 }
 
 void Arduino::write(const QByteArray data)

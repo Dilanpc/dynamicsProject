@@ -1,8 +1,6 @@
 #ifndef ARDUINO_H
 #define ARDUINO_H
 
-#define ESP_PLATFORM // Uncomment to use with ESP32
-
 #include <QDebug>
 #include <QSerialPort>
 #include <QSerialPortInfo>
@@ -16,6 +14,8 @@ public:
     ~Arduino();
 
     long position = 0;
+
+    void open(const QString& serialPortName);
 
     void write(const QByteArray data);
 

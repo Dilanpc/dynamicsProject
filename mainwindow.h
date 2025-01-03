@@ -9,7 +9,7 @@
 #include <QLineEdit>
 #include <QIntValidator>
 #include <QPushButton>
-
+#include <QListWidget>
 
 #include <QTimer>
 #include <QElapsedTimer>
@@ -26,6 +26,7 @@ public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
 
+    QGridLayout* layout;
     Arduino* arduino;
 
 private:
@@ -41,6 +42,8 @@ private:
     Grapher* posGraph;
     Grapher* velGraph;
 
+    void serialPortSelection();
+    void mainInterface();
 
 
 private slots:
@@ -48,5 +51,30 @@ private slots:
     void readVel();
 
     void changeDir();
+
+
+
+
+private: // Sections
+    class SerialPortSelection : public QWidget
+    {
+
+    public:
+        SerialPortSelection(MainWindow* parent);
+        QVBoxLayout* layout;
+
+        QLabel* title;
+        QListWidget* list;
+    };
 };
+
+
+
+
+
 #endif // MAINWINDOW_H
+
+
+
+
+

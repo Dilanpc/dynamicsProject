@@ -2,109 +2,26 @@
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent),
-
-    readTimer(new QTimer(this)),
-    clock(new QElapsedTimer()),
-    centralWidget(new QWidget(this)),
-    slider(new QSlider(Qt::Horizontal, this)),
-    speed(new QLineEdit(this)),
-    btnDir(new QPushButton(this)),
-    posGraph(new Grapher(this)),
-    velGraph(new Grapher(this, 2))
+    layout(new QGridLayout()),
+    arduino(new Arduino(this)),
+    centralWidget(new QWidget(this))
 {
 
     setWindowTitle("Stepping Motor Controller");
     setCentralWidget(centralWidget);
-    QGridLayout* layout = new QGridLayout(centralWidget);
-
-    try {
-        arduino = new Arduino(this);
-    }
-    catch (...) {
-        QLabel* label = new QLabel();
-        label->setText("Error al iniciar coneccón con Arduino.");
-        label->setAlignment(Qt::AlignCenter);
-        layout->addWidget(label, 0, 0);
-        return;
-    }
+    centralWidget->setLayout(layout);
 
 
-    // Slider
-    slider->setMinimum(0);
-    slider->setMaximum(1080);
-    slider->setValue(0);
+    SerialPortSelection* serialPortSelection = new SerialPortSelection(this);
+    layout->addWidget(serialPortSelection);
 
-    layout->addWidget(slider, 0, 0, 2, 1);
-
-    // speed text
-    QIntValidator *validator = new QIntValidator(0, 1080, speed); // Rango entre 0 y 100
-    speed->setValidator(validator);
-    speed->setText("0");
-
-    layout->addWidget(speed, 0, 1);
-
-    // Direction Button
-    btnDir->setText("Cambiar dirección");
-    connect(btnDir, &QPushButton::clicked, this, &MainWindow::changeDir);
-
-    layout->addWidget(btnDir, 1, 1);
-
-
-    // Position Chart
-    posGraph->series[0]->setName("Posición");
-    posGraph->chart->setTitle("Posición vs Tiempo");
-    posGraph->axisX->setTitleText("Tiempo");
-    posGraph->axisY->setTitleText("Posición");
-    posGraph->chart->legend()->hide();
-
-    for (int i = 0; i < 100; ++i) { // Fill with 0
-        posGraph->series[0]->append(0,0);
-    }
-
-    layout->addWidget(posGraph->chartView, 2, 0, 1, 2);
-
-    // Angular Speed Chart
-    velGraph->series[0]->setName("Directa");
-    velGraph->series[0]->setColor(QColor(255, 187, 28));
-
-    velGraph->series[1]->setName("Centrada");
-    velGraph->series[1]->setColor(QColor(232, 100, 23));
-
-    velGraph->chart->setTitle("Velocidad vs Tiempo");
-    velGraph->axisX->setTitleText("Tiempo");
-    velGraph->axisY->setTitleText("Velocidad");
-
-    for (int i = 0; i < 98; ++i) { // Fill with 0, 98 because the method centered differences
-        velGraph->series[0]->append(0,0);
-        velGraph->series[1]->append(0,0);
-    }
-    velGraph->series[0]->append(0,0); // 99 data for direct method
-
-    layout->addWidget(velGraph->chartView, 3, 0, 1, 2);
-
-
-    ///////// Connect slider and speed text ///////////
-    QObject::connect(slider, &QSlider::valueChanged, this, [this](int value) {
-        speed->setText(QString::number(value)); // Actualizar el texto del lineEdit
-        arduino->write((QString("s") + QString::number(value) + '\n').toUtf8());
-    });
-
-    QObject::connect(speed, &QLineEdit::editingFinished, this, [this]() {
-        QString text = speed->text();
-        slider->setValue(text.toInt()); // Actualizar el valor del slider
-        arduino->write((QString("s") + text + '\n').toUtf8());
+    QObject::connect(serialPortSelection->list, &QListWidget::itemClicked, [this, serialPortSelection](QListWidgetItem* item){
+        arduino->open(item->text());
+        mainInterface();
+        serialPortSelection->deleteLater();
     });
 
 
-
-    // Read arduino data each 50 milliseconds
-    connect(readTimer, &QTimer::timeout, this, &MainWindow::readPos);
-    readTimer->start(50);
-
-
-
-
-    clock->start();
 }
 
 MainWindow::~MainWindow()
@@ -170,4 +87,118 @@ void MainWindow::readVel()
 void MainWindow::changeDir()
 {
     arduino->write("d");
+}
+
+
+
+
+MainWindow::SerialPortSelection::SerialPortSelection(MainWindow* _parent)
+    : QWidget(_parent),
+    layout(new QVBoxLayout(this)),
+    title(new QLabel),
+    list(new QListWidget)
+{
+    title->setText("Seleccione puerto serial");
+    title->setAlignment(Qt::AlignCenter);
+    layout->addWidget(title);
+
+    foreach (const QSerialPortInfo &info, QSerialPortInfo::availablePorts()) {
+        list->addItem(info.portName());
+    }
+    layout->addWidget(list);
+}
+
+void MainWindow::mainInterface()
+{
+    readTimer = new QTimer;
+    clock = new QElapsedTimer; // delete manually
+    slider = new QSlider(Qt::Horizontal);
+    speed = new QLineEdit;
+    btnDir = new QPushButton;
+    posGraph = new Grapher(this);
+    velGraph = new Grapher(this, 2);
+
+
+    // Slider
+    slider->setMinimum(0);
+    slider->setMaximum(1080);
+    slider->setValue(0);
+    layout->addWidget(slider, 0, 0, 2, 1);
+
+
+
+    // speed text
+    QIntValidator *validator = new QIntValidator(0, 1080, speed); // Rango entre 0 y 100
+    speed->setValidator(validator);
+    speed->setText("0");
+    layout->addWidget(speed, 0, 1);
+
+
+
+    // Direction Button
+    btnDir->setText("Cambiar dirección");
+    connect(btnDir, &QPushButton::clicked, this, &MainWindow::changeDir);
+    layout->addWidget(btnDir, 1, 1);
+
+
+    // Position Chart
+    posGraph->series[0]->setName("Posición");
+    posGraph->chart->setTitle("Posición vs Tiempo");
+    posGraph->axisX->setTitleText("Tiempo");
+    posGraph->axisY->setTitleText("Posición");
+    posGraph->chart->legend()->hide();
+
+    for (int i = 0; i < 100; ++i) { // Fill with 0
+        posGraph->series[0]->append(0,0);
+    }
+
+    layout->addWidget(posGraph->chartView, 2, 0, 1, 2);
+
+
+
+    // Angular Speed Chart
+    velGraph->series[0]->setName("Directa");
+    velGraph->series[0]->setColor(QColor(255, 187, 28));
+
+    velGraph->series[1]->setName("Centrada");
+    velGraph->series[1]->setColor(QColor(232, 100, 23));
+
+    velGraph->chart->setTitle("Velocidad vs Tiempo");
+    velGraph->axisX->setTitleText("Tiempo");
+    velGraph->axisY->setTitleText("Velocidad");
+
+    for (int i = 0; i < 98; ++i) { // Fill with 0, 98 because the method centered differences
+        velGraph->series[0]->append(0,0);
+        velGraph->series[1]->append(0,0);
+    }
+    velGraph->series[0]->append(0,0); // 99 data for direct method
+
+    layout->addWidget(velGraph->chartView, 3, 0, 1, 2);
+
+
+
+
+
+    ///////// Connect slider and speed text ///////////
+    QObject::connect(slider, &QSlider::valueChanged, this, [this](int value) {
+        speed->setText(QString::number(value)); // Actualizar el texto del lineEdit
+        arduino->write((QString("s") + QString::number(value) + '\n').toUtf8());
+    });
+
+    QObject::connect(speed, &QLineEdit::editingFinished, this, [this]() {
+        QString text = speed->text();
+        slider->setValue(text.toInt()); // Actualizar el valor del slider
+        arduino->write((QString("s") + text + '\n').toUtf8());
+    });
+
+
+
+    // Read arduino data each 50 milliseconds
+    connect(readTimer, &QTimer::timeout, this, &MainWindow::readPos);
+    readTimer->start(50);
+
+
+
+
+    clock->start();
 }
