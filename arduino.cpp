@@ -1,5 +1,7 @@
 #include "arduino.h"
 
+#define POS_CHANGE 3
+
 
 Arduino::Arduino(QObject* parent)
     : QObject(parent)
@@ -38,10 +40,10 @@ void Arduino::getEncoderData()
 
     for (char d : data){
         if (d == '1') {
-            position += 12;
+            position += POS_CHANGE;
         }
         if (d == '0') {
-            position -= 12;
+            position -= POS_CHANGE;
         }
     }
 

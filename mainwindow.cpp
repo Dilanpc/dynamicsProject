@@ -42,6 +42,7 @@ void MainWindow::readPos()
     posGraph->axisY->setRange(last.y() - 500, last.y() + 500);
 
     readVel();
+    readAcc();
 
 }
 
@@ -80,7 +81,47 @@ void MainWindow::readVel()
     QPointF last = centered->at(97);
 
     velGraph->axisX->setRange(first.x(), last.x());
-    velGraph->axisY->setRange(last.y() - 480, last.y() + 480);
+}
+
+
+void MainWindow::readAcc()
+{
+    QPointF velCen1 = velGraph->series[1]->at(97);
+
+    QPointF velCen3 = velGraph->series[1]->at(95);
+
+    QPointF velDir1 = velGraph->series[0]->at(98);
+    QPointF velDir2 = velGraph->series[0]->at(97);
+
+    // Using centered differences
+
+    QLineSeries* centered = accGraph->series[1];
+
+
+
+    centered->remove(0);
+
+    centered->append(
+        velCen3.x() + (velCen1.x() - velCen3.x()) / 2,
+        1000 * (velCen1.y() - velCen3.y()) / (velCen1.x() - velCen3.x())
+        );
+
+
+    // Deirect
+    QLineSeries* direct = accGraph->series[0];
+
+    direct->remove(0);
+    direct->append(
+        velDir2.x() + (velDir1.x() - velDir2.x()) / 2,
+        1000 * (velDir1.y() - velDir2.y()) / (velDir1.x() - velDir2.x())
+        );
+
+    // Adjust graph for centered
+    QPointF first = centered->at(0);
+    QPointF last = centered->at(95);
+
+    accGraph->axisX->setRange(first.x(), last.x());
+
 }
 
 
@@ -117,6 +158,7 @@ void MainWindow::mainInterface()
     btnDir = new QPushButton;
     posGraph = new Grapher(this);
     velGraph = new Grapher(this, 2);
+    accGraph = new Grapher(this, 2);
 
 
     // Slider
@@ -166,8 +208,9 @@ void MainWindow::mainInterface()
     velGraph->chart->setTitle("Velocidad vs Tiempo");
     velGraph->axisX->setTitleText("Tiempo");
     velGraph->axisY->setTitleText("Velocidad");
+    velGraph->axisY->setRange(0, 480); // Limits in y axis
 
-    for (int i = 0; i < 98; ++i) { // Fill with 0, 98 because the method centered differences
+    for (int i = 0; i < 98; ++i) { // Fill with 0, 98 because the method centered differences uses 98 data
         velGraph->series[0]->append(0,0);
         velGraph->series[1]->append(0,0);
     }
@@ -176,6 +219,26 @@ void MainWindow::mainInterface()
     layout->addWidget(velGraph->chartView, 3, 0, 1, 2);
 
 
+
+    // Acceleration Chart
+    accGraph->series[0]->setName("Directa");
+    accGraph->series[0]->setColor(QColor(255, 187, 28));
+
+    accGraph->series[1]->setName("Centrada");
+    accGraph->series[1]->setColor(QColor(232, 100, 23));
+
+    accGraph->chart->setTitle("Aceleración vs Tiempo");
+    accGraph->axisX->setTitleText("Tiempo");
+    accGraph->axisY->setTitleText("Aceleración");
+    accGraph->axisY->setRange(-240, 240); // Limits in y axis
+
+    for (int i = 0; i < 97; ++i) { // Fill with 0, 97 because the method centered differences
+        accGraph->series[0]->append(0,0);
+        accGraph->series[1]->append(0,0);
+    }
+    accGraph->series[0]->append(0,0); // 98 data for direct method
+
+    layout->addWidget(accGraph->chartView, 4, 0, 1, 2);
 
 
 

@@ -39,8 +39,9 @@ private:
     QLineEdit* speed;
     QPushButton* btnDir;
 
-    Grapher* posGraph;
-    Grapher* velGraph;
+    Grapher* posGraph; // Position
+    Grapher* velGraph; // Speed
+    Grapher* accGraph; // Acceleration
 
     void serialPortSelection();
     void mainInterface();
@@ -49,6 +50,7 @@ private:
 private slots:
     void readPos();
     void readVel();
+    void readAcc();
 
     void changeDir();
 
