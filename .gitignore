@@ -9,6 +9,10 @@
 *.creator.*
 *.user
 
+/vs/
+/vscode/
+/.vs/
+/.vscode/
 
 .DS_Store
 Thumbs.db
