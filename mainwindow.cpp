@@ -48,21 +48,18 @@ void MainWindow::readPos()
 
 void MainWindow::readVel()
 {
-    QPointF pos1 = posGraph->series[0]->at(99);
-    QPointF pos2 = posGraph->series[0]->at(98);
-    QPointF pos3 = posGraph->series[0]->at(97);
+    QLineSeries& pos = *posGraph->series[0];
 
     // Using centered differences
 
     QLineSeries* centered = velGraph->series[1];
 
 
-
     centered->remove(0);
 
     centered->append(
-        pos3.x() + (pos1.x() - pos3.x()) / 2,
-        1000 * (pos1.y() - pos3.y()) / (pos1.x() - pos3.x())
+        (pos.at(97).x() + pos.at(99).x()) / 2,
+        1000 * (pos.at(99).y() - pos.at(97).y()) / (pos.at(99).x() - pos.at(97).x())
         );
 
 
@@ -71,13 +68,29 @@ void MainWindow::readVel()
 
     direct->remove(0);
     direct->append(
-        pos2.x() + (pos1.x() - pos2.x()) / 2,
-        1000 * (pos1.y() - pos2.y()) / (pos1.x() - pos2.x())
+        (pos.at(98).x() + pos.at(99).x()) / 2,
+        1000 * (pos.at(99).y() - pos.at(98).y()) / (pos.at(99).x() - pos.at(98).x())
         );
 
 
+
+    // Average 5
+    QLineSeries* avg = velGraph->series[2];
+
+    QPointF point(0,0);
+    for (int i = 0; i < 5; ++i) {
+        point.setX( point.x() + direct->at(98-i).x() );
+        point.setY( point.y() + direct->at(98-i).y() );
+    }
+    point.setX(point.x() / 5);
+    point.setY(point.y() / 5);
+
+    avg->remove(0);
+    avg->append(point);
+
+
     // Adjust graph for centered
-    QPointF first = centered->at(0);
+    QPointF first = centered->at(0);    
     QPointF last = centered->at(97);
 
     velGraph->axisX->setRange(first.x(), last.x());
@@ -87,17 +100,25 @@ void MainWindow::readVel()
 void MainWindow::readAcc()
 {
     QPointF velCen1 = velGraph->series[1]->at(97);
-
     QPointF velCen3 = velGraph->series[1]->at(95);
 
     QPointF velDir1 = velGraph->series[0]->at(98);
     QPointF velDir2 = velGraph->series[0]->at(97);
 
+
+    // Deirect
+    QLineSeries* direct = accGraph->series[0];
+
+    direct->remove(0);
+    direct->append(
+        (velDir2.x() + velDir1.x()) / 2, // Average time
+        1000 * (velDir1.y() - velDir2.y()) / (velDir1.x() - velDir2.x())
+        );
+
+
     // Using centered differences
 
     QLineSeries* centered = accGraph->series[1];
-
-
 
     centered->remove(0);
 
@@ -107,14 +128,6 @@ void MainWindow::readAcc()
         );
 
 
-    // Deirect
-    QLineSeries* direct = accGraph->series[0];
-
-    direct->remove(0);
-    direct->append(
-        velDir2.x() + (velDir1.x() - velDir2.x()) / 2,
-        1000 * (velDir1.y() - velDir2.y()) / (velDir1.x() - velDir2.x())
-        );
 
     // Adjust graph for centered
     QPointF first = centered->at(0);
@@ -149,6 +162,7 @@ MainWindow::SerialPortSelection::SerialPortSelection(MainWindow* _parent)
     layout->addWidget(list);
 }
 
+
 void MainWindow::mainInterface()
 {
     readTimer = new QTimer;
@@ -156,16 +170,24 @@ void MainWindow::mainInterface()
     slider = new QSlider(Qt::Horizontal);
     speed = new QLineEdit;
     btnDir = new QPushButton;
+    btnSave = new QPushButton;
     posGraph = new Grapher(this);
-    velGraph = new Grapher(this, 2);
+    velGraph = new Grapher(this, 3);
     accGraph = new Grapher(this, 2);
+
+    // Layout configuration
+    layout->setColumnStretch(0, 1);
+    layout->setColumnStretch(1, 1);
+    layout->setColumnStretch(2, 2);
+    QGridLayout* optionsLayout = new QGridLayout;
+    layout->addLayout(optionsLayout, 0, 0, 2, 2);
 
 
     // Slider
     slider->setMinimum(0);
     slider->setMaximum(1080);
     slider->setValue(0);
-    layout->addWidget(slider, 0, 0, 2, 1);
+    optionsLayout->addWidget(slider, 0, 0, 3, 1);
 
 
 
@@ -173,15 +195,19 @@ void MainWindow::mainInterface()
     QIntValidator *validator = new QIntValidator(0, 1080, speed); // Rango entre 0 y 100
     speed->setValidator(validator);
     speed->setText("0");
-    layout->addWidget(speed, 0, 1);
+    optionsLayout->addWidget(speed, 0, 1);
 
 
 
     // Direction Button
     btnDir->setText("Cambiar dirección");
     connect(btnDir, &QPushButton::clicked, this, &MainWindow::changeDir);
-    layout->addWidget(btnDir, 1, 1);
+    optionsLayout->addWidget(btnDir, 1, 1);
 
+    // Save Button
+    btnSave->setText("Guardar últimos 100");
+    //connect(btnSave, &QPushButton::Clicked, this, &MainWindow::saveData);
+    optionsLayout->addWidget(btnSave, 2, 1);
 
     // Position Chart
     posGraph->series[0]->setName("Posición");
@@ -194,7 +220,7 @@ void MainWindow::mainInterface()
         posGraph->series[0]->append(0,0);
     }
 
-    layout->addWidget(posGraph->chartView, 2, 0, 1, 2);
+    layout->addWidget(posGraph->chartView, 0, 2, 2, 2);
 
 
 
@@ -205,18 +231,23 @@ void MainWindow::mainInterface()
     velGraph->series[1]->setName("Centrada");
     velGraph->series[1]->setColor(QColor(232, 100, 23));
 
+    velGraph->series[2]->setName("Avg 5");
+    velGraph->series[2]->setColor(QColor(111, 222, 141));
+
     velGraph->chart->setTitle("Velocidad vs Tiempo");
     velGraph->axisX->setTitleText("Tiempo");
     velGraph->axisY->setTitleText("Velocidad");
     velGraph->axisY->setRange(0, 480); // Limits in y axis
 
-    for (int i = 0; i < 98; ++i) { // Fill with 0, 98 because the method centered differences uses 98 data
+    // Fill with 0
+    for (int i = 0; i < 99; ++i) // One less than position
         velGraph->series[0]->append(0,0);
+    for (int i = 0; i < 98; ++i)  // 98 because the method centered differences misses two elements
         velGraph->series[1]->append(0,0);
-    }
-    velGraph->series[0]->append(0,0); // 99 data for direct method
+    for (int i = 0; i < 96; ++i) // using 5 data to average, misses 4
+        velGraph->series[2]->append(0,0);
 
-    layout->addWidget(velGraph->chartView, 3, 0, 1, 2);
+    layout->addWidget(velGraph->chartView, 2, 0, 1, 2);
 
 
 
@@ -238,7 +269,7 @@ void MainWindow::mainInterface()
     }
     accGraph->series[0]->append(0,0); // 98 data for direct method
 
-    layout->addWidget(accGraph->chartView, 4, 0, 1, 2);
+    layout->addWidget(accGraph->chartView, 2, 2, 1, 2);
 
 
 

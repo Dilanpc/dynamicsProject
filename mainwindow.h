@@ -14,6 +14,8 @@
 #include <QTimer>
 #include <QElapsedTimer>
 
+
+
 #include "arduino.h"
 #include "grapher.h"
 
@@ -31,13 +33,15 @@ public:
 
 private:
     QTimer* readTimer;
-    QElapsedTimer* clock;
+    QElapsedTimer* clock; // For charts
+
 
     QWidget* centralWidget;
 
     QSlider* slider;
     QLineEdit* speed;
     QPushButton* btnDir;
+    QPushButton* btnSave;
 
     Grapher* posGraph; // Position
     Grapher* velGraph; // Speed
