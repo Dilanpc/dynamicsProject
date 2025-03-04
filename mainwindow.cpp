@@ -30,6 +30,30 @@ MainWindow::~MainWindow()
 }
 
 
+void MainWindow::saveData() const
+{
+    static QString path = "Resultados_posicion.csv";
+    QFile file(path);
+
+    QLineSeries* serie = posGraph->series[0];
+
+
+    if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        QTextStream stream(&file);
+
+        stream << "Tiempo,Posición\n";
+
+        for (int i = 0; i < serie->count(); ++i) {
+            stream << serie->at(i).x() << ',' // Time
+                   << serie->at(i).y() << '\n'; // Position
+        }
+
+        file.close();
+    }
+
+}
+
+
 void MainWindow::readPos()
 {
     posGraph->series[0]->remove(0);
@@ -59,7 +83,7 @@ void MainWindow::readVel()
 
     centered->append(
         (pos.at(97).x() + pos.at(99).x()) / 2,
-        1000 * (pos.at(99).y() - pos.at(97).y()) / (pos.at(99).x() - pos.at(97).x())
+        (1000 * pos.at(99).y() - 1000 * pos.at(97).y()) / (pos.at(99).x() - pos.at(97).x())
         );
 
 
@@ -69,7 +93,7 @@ void MainWindow::readVel()
     direct->remove(0);
     direct->append(
         (pos.at(98).x() + pos.at(99).x()) / 2,
-        1000 * (pos.at(99).y() - pos.at(98).y()) / (pos.at(99).x() - pos.at(98).x())
+        (1000 * pos.at(99).y() - 1000 * pos.at(98).y()) / (pos.at(99).x() - pos.at(98).x())
         );
 
 
@@ -99,41 +123,50 @@ void MainWindow::readVel()
 
 void MainWindow::readAcc()
 {
-    QPointF velCen1 = velGraph->series[1]->at(97);
-    QPointF velCen3 = velGraph->series[1]->at(95);
+    QLineSeries& velCen = *velGraph->series[1]; // Centered velocity
 
-    QPointF velDir1 = velGraph->series[0]->at(98);
-    QPointF velDir2 = velGraph->series[0]->at(97);
+    QLineSeries& velAvg = *velGraph->series[2]; // Average 5 velocity
 
 
     // Deirect
-    QLineSeries* direct = accGraph->series[0];
+    QLineSeries& direct = *accGraph->series[0];
 
-    direct->remove(0);
-    direct->append(
-        (velDir2.x() + velDir1.x()) / 2, // Average time
-        1000 * (velDir1.y() - velDir2.y()) / (velDir1.x() - velDir2.x())
+    direct.remove(0);
+    direct.append(
+        (velAvg.at(95).x() + velAvg.at(94).x()) / 2, // Average time
+        (1000 * velAvg.at(95).y() - 1000 * velAvg.at(94).y()) / (velAvg.at(95).x() - velAvg.at(94).x())
         );
 
 
     // Using centered differences
 
-    QLineSeries* centered = accGraph->series[1];
+    QLineSeries& centered = *accGraph->series[1];
 
-    centered->remove(0);
+    centered.remove(0);
 
-    centered->append(
-        velCen3.x() + (velCen1.x() - velCen3.x()) / 2,
-        1000 * (velCen1.y() - velCen3.y()) / (velCen1.x() - velCen3.x())
+    centered.append(
+        (velCen.at(97).x() + velCen.at(95).x()) / 2,
+        (1000 * velCen.at(97).y() - 1000 * velCen.at(95).y()) / (velCen.at(97).x() - velCen.at(95).x())
         );
 
+    // Average 4
+    QLineSeries* avg = accGraph->series[2];
+
+    QPointF point(0,0);
+    for (int i = 0; i < 4; ++i) {
+        point.setX( point.x() + direct.at(97-i).x() );
+        point.setY( point.y() + direct.at(97-i).y() );
+    }
+    point.setX(point.x() / 4);
+    point.setY(point.y() / 4);
+
+    avg->remove(0);
+    avg->append(point);
 
 
     // Adjust graph for centered
-    QPointF first = centered->at(0);
-    QPointF last = centered->at(95);
 
-    accGraph->axisX->setRange(first.x(), last.x());
+    accGraph->axisX->setRange(centered.at(0).x(), centered.at(95).x());
 
 }
 
@@ -173,7 +206,7 @@ void MainWindow::mainInterface()
     btnSave = new QPushButton;
     posGraph = new Grapher(this);
     velGraph = new Grapher(this, 3);
-    accGraph = new Grapher(this, 2);
+    accGraph = new Grapher(this, 3);
 
     // Layout configuration
     layout->setColumnStretch(0, 1);
@@ -206,7 +239,7 @@ void MainWindow::mainInterface()
 
     // Save Button
     btnSave->setText("Guardar últimos 100");
-    //connect(btnSave, &QPushButton::Clicked, this, &MainWindow::saveData);
+    connect(btnSave, &QPushButton::clicked, this, &MainWindow::saveData);
     optionsLayout->addWidget(btnSave, 2, 1);
 
     // Position Chart
@@ -226,10 +259,10 @@ void MainWindow::mainInterface()
 
     // Angular Speed Chart
     velGraph->series[0]->setName("Directa");
-    velGraph->series[0]->setColor(QColor(255, 187, 28));
+    velGraph->series[0]->setColor(QColor(127, 93, 14));
 
     velGraph->series[1]->setName("Centrada");
-    velGraph->series[1]->setColor(QColor(232, 100, 23));
+    velGraph->series[1]->setColor(QColor(116, 25, 1));
 
     velGraph->series[2]->setName("Avg 5");
     velGraph->series[2]->setColor(QColor(111, 222, 141));
@@ -237,7 +270,7 @@ void MainWindow::mainInterface()
     velGraph->chart->setTitle("Velocidad vs Tiempo");
     velGraph->axisX->setTitleText("Tiempo");
     velGraph->axisY->setTitleText("Velocidad");
-    velGraph->axisY->setRange(0, 480); // Limits in y axis
+    velGraph->axisY->setRange(0, 700); // Limits in y axis
 
     // Fill with 0
     for (int i = 0; i < 99; ++i) // One less than position
@@ -253,22 +286,26 @@ void MainWindow::mainInterface()
 
     // Acceleration Chart
     accGraph->series[0]->setName("Directa");
-    accGraph->series[0]->setColor(QColor(255, 187, 28));
+    accGraph->series[0]->setColor(QColor(127, 93, 14));
 
     accGraph->series[1]->setName("Centrada");
-    accGraph->series[1]->setColor(QColor(232, 100, 23));
+    accGraph->series[1]->setColor(QColor(116, 25, 1));
+
+    accGraph->series[2]->setName("Avg 4");
+    accGraph->series[2]->setColor(QColor(111, 222, 141));
 
     accGraph->chart->setTitle("Aceleración vs Tiempo");
     accGraph->axisX->setTitleText("Tiempo");
     accGraph->axisY->setTitleText("Aceleración");
-    accGraph->axisY->setRange(-240, 240); // Limits in y axis
+    accGraph->axisY->setRange(-1000, 1000); // Limits in y axis
 
-    for (int i = 0; i < 97; ++i) { // Fill with 0, 97 because the method centered differences
+    // Fill with 0
+    for (int i = 0; i < 98; ++i) // One less than speed
         accGraph->series[0]->append(0,0);
+    for (int i = 0; i < 97; ++i)  // 97 because the method centered differences misses two elements
         accGraph->series[1]->append(0,0);
-    }
-    accGraph->series[0]->append(0,0); // 98 data for direct method
-
+    for (int i = 0; i < 95; ++i) // using 5 data to average, misses 4
+        accGraph->series[2]->append(0,0);
     layout->addWidget(accGraph->chartView, 2, 2, 1, 2);
 
 
@@ -287,9 +324,9 @@ void MainWindow::mainInterface()
 
 
 
-    // Read arduino data each 50 milliseconds
+    // Read arduino data each 10 milliseconds
     connect(readTimer, &QTimer::timeout, this, &MainWindow::readPos);
-    readTimer->start(50);
+    readTimer->start(10);
 
 
 

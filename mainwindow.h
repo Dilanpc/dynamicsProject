@@ -14,7 +14,8 @@
 #include <QTimer>
 #include <QElapsedTimer>
 
-
+#include <QFile>
+#include <QTextStream>
 
 #include "arduino.h"
 #include "grapher.h"
@@ -58,7 +59,7 @@ private slots:
 
     void changeDir();
 
-
+    void saveData() const;
 
 
 private: // Sections

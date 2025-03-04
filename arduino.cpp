@@ -1,6 +1,6 @@
 #include "arduino.h"
 
-#define POS_CHANGE 3
+#define POS_CHANGE 6
 
 
 Arduino::Arduino(QObject* parent)
